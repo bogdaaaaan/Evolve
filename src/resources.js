@@ -765,6 +765,7 @@ export function tradeSummery(){
     if (global.race.species !== 'protoplasm'){
         loadRouteCounter();
         initGalaxyTrade();
+        initAutoMarket();
         loadContainerCounter();
     }
 }
@@ -915,26 +916,7 @@ function loadResource(name,wiki,max,rate,tradable,stackable,color){
             },
             craft(res,vol){
                 if (!global.race['no_craft']){
-                    let craft_bonus = craftingRatio(res,'manual').multiplier;
-                    let craft_costs = craftCost(true);
-                    let volume = Math.floor(global.resource[craft_costs[res][0].r].amount / craft_costs[res][0].a);
-                    for (let i=1; i<craft_costs[res].length; i++){
-                        let temp = Math.floor(global.resource[craft_costs[res][i].r].amount / craft_costs[res][i].a);
-                        if (temp < volume){
-                            volume = temp;
-                        }
-                    }
-                    if (vol !== 'A'){
-                        let total = vol * keyMultiplier();
-                        if (total < volume){
-                            volume = total;
-                        }
-                    }
-                    for (let i=0; i<craft_costs[res].length; i++){
-                        let num = volume * craft_costs[res][i].a;
-                        global.resource[craft_costs[res][i].r].amount -= num;
-                    }
-                    global.resource[res].amount += volume * craft_bonus;
+                    craftResource(res, vol === 'A' ? 'A' : vol * keyMultiplier());
                 }
             },
             craftCost(res,vol){
@@ -1480,61 +1462,12 @@ export function marketItem(mount,market_item,name,color,full){
             },
             purchase(res){
                 if (!global.race['no_trade'] && !global.settings.pause){
-                    let qty = global.city.market.qty;
-                    let value = global.resource[res].value;
-                    if (global.race['arrogant']){
-                        value *= 1 + (traits.arrogant.vars()[0] / 100);
-                    }
-                    if (global.race['conniving']){
-                        value *= 1 - (traits.conniving.vars()[0] / 100);
-                    }
-                    let fathom = fathomCheck('imp');
-                    if (fathom > 0){
-                        value *= 1 - (traits.conniving.vars(1)[0] / 100 * fathom);
-                    }
-                    let amount = Math.floor(Math.min(qty, global.resource.Money.amount / value,
-                      global.resource[res].max - global.resource[res].amount));
-                    if (amount > 0){
-                        global.resource[res].amount += amount;
-                        global.resource.Money.amount -= Math.round(value * amount);
-
-                        global.resource[res].value += Number((amount / Math.rand(1000,10000)).toFixed(2));
-                    }
+                    marketBuy(res, global.city.market.qty);
                 }
             },
             sell(res){
                 if (!global.race['no_trade'] && !global.settings.pause){
-                    let qty = global.city.market.qty;
-                    let divide = 4;
-                    if (global.race['merchant']){
-                        divide *= 1 - (traits.merchant.vars()[0] / 100);
-                    }
-                    let gobFathom = fathomCheck('goblin');
-                    if (gobFathom > 0){
-                        divide *= 1 - (traits.merchant.vars(1)[0] / 100 * gobFathom);
-                    }
-                    if (global.race['asymmetrical']){
-                        divide *= 1 + (traits.asymmetrical.vars()[0] / 100);
-                    }
-                    if (global.race['conniving']){
-                        divide *= 1 - (traits.conniving.vars()[1] / 100);
-                    }
-                    let impFathom = fathomCheck('imp');
-                    if (impFathom > 0){
-                        divide *= 1 - (traits.conniving.vars(1)[1] / 100 * impFathom);
-                    }
-                    let price = global.resource[res].value / divide;
-                    let amount = Math.floor(Math.min(qty, global.resource[res].amount,
-                      (global.resource.Money.max - global.resource.Money.amount) / price));
-                    if (amount > 0) {
-                        global.resource[res].amount -= amount;
-                        global.resource.Money.amount += Math.round(price * amount);
-
-                        global.resource[res].value -= Number((amount / Math.rand(1000,10000)).toFixed(2));
-                        if (global.resource[res].value < Number(resource_values[res] / 2)){
-                            global.resource[res].value = Number(resource_values[res] / 2);
-                        }
-                    }
+                    marketSell(res, global.city.market.qty);
                 }
             },
             autoBuy(res, keyMult = keyMultiplier()){
@@ -1641,6 +1574,191 @@ export function marketItem(mount,market_item,name,color,full){
             },
             namespace(val){
                 return val.replace("_", " ");
+            }
+        }
+    });
+}
+
+export function marketBuy(res,qty){
+    let value = global.resource[res].value;
+    if (global.race['arrogant']){
+        value *= 1 + (traits.arrogant.vars()[0] / 100);
+    }
+    if (global.race['conniving']){
+        value *= 1 - (traits.conniving.vars()[0] / 100);
+    }
+    let fathom = fathomCheck('imp');
+    if (fathom > 0){
+        value *= 1 - (traits.conniving.vars(1)[0] / 100 * fathom);
+    }
+    let amount = Math.floor(Math.min(qty, global.resource.Money.amount / value,
+      global.resource[res].max - global.resource[res].amount));
+    if (amount > 0){
+        global.resource[res].amount += amount;
+        global.resource.Money.amount -= Math.round(value * amount);
+
+        global.resource[res].value += Number((amount / Math.rand(1000,10000)).toFixed(2));
+    }
+}
+
+export function marketSell(res,qty){
+    let divide = 4;
+    if (global.race['merchant']){
+        divide *= 1 - (traits.merchant.vars()[0] / 100);
+    }
+    let gobFathom = fathomCheck('goblin');
+    if (gobFathom > 0){
+        divide *= 1 - (traits.merchant.vars(1)[0] / 100 * gobFathom);
+    }
+    if (global.race['asymmetrical']){
+        divide *= 1 + (traits.asymmetrical.vars()[0] / 100);
+    }
+    if (global.race['conniving']){
+        divide *= 1 - (traits.conniving.vars()[1] / 100);
+    }
+    let impFathom = fathomCheck('imp');
+    if (impFathom > 0){
+        divide *= 1 - (traits.conniving.vars(1)[1] / 100 * impFathom);
+    }
+    let price = global.resource[res].value / divide;
+    let amount = Math.floor(Math.min(qty, global.resource[res].amount,
+      (global.resource.Money.max - global.resource.Money.amount) / price));
+    if (amount > 0) {
+        global.resource[res].amount -= amount;
+        global.resource.Money.amount += Math.round(price * amount);
+
+        global.resource[res].value -= Number((amount / Math.rand(1000,10000)).toFixed(2));
+        if (global.resource[res].value < Number(resource_values[res] / 2)){
+            global.resource[res].value = Number(resource_values[res] / 2);
+        }
+    }
+}
+
+// Market tab automation rules, checked once per second from midLoop
+export function autoMarket(){
+    let am = global.settings.autoMarket;
+    if (global.settings.pause || global.race.species === 'protoplasm'){
+        return;
+    }
+    if (!global.race['no_trade'] && global.settings.showMarket){
+        Object.keys(am.sell).forEach(function(res){
+            let rule = am.sell[res];
+            if (rule.on && global.resource[res] && global.resource[res].display && autoTrigger(am.sellAt, res)){
+                marketSell(res, rule.qty);
+            }
+        });
+        Object.keys(am.buy).forEach(function(res){
+            let rule = am.buy[res];
+            if (rule.on && global.resource[res] && global.resource[res].display && autoTrigger(am.buyAt, 'Money')){
+                marketBuy(res, rule.qty);
+            }
+        });
+    }
+    if (!global.race['no_craft']){
+        let craft_costs = craftCost(true);
+        Object.keys(am.craft).forEach(function(res){
+            let rule = am.craft[res];
+            if (rule.on && craft_costs[res] && global.resource[res].display && autoTrigger(am.craftAt, craft_costs[res][0].r)){
+                craftResource(res, Math.ceil(rule.qty / craftingRatio(res,'manual').multiplier));
+            }
+        });
+    }
+}
+
+// Trigger is a percent of max or an offset below max; resources without a storage cap never trigger
+function autoTrigger(trigger,res){
+    let max = global.resource[res].max;
+    let limit = trigger.type === 'pct' ? max * trigger.v / 100 : max - trigger.v;
+    return max > 0 && global.resource[res].amount >= limit;
+}
+
+// vol is a number of craft operations or 'A' for as many as affordable
+export function craftResource(res,vol){
+    let craft_bonus = craftingRatio(res,'manual').multiplier;
+    let craft_costs = craftCost(true);
+    let volume = Math.floor(global.resource[craft_costs[res][0].r].amount / craft_costs[res][0].a);
+    for (let i=1; i<craft_costs[res].length; i++){
+        let temp = Math.floor(global.resource[craft_costs[res][i].r].amount / craft_costs[res][i].a);
+        if (temp < volume){
+            volume = temp;
+        }
+    }
+    if (vol !== 'A' && vol < volume){
+        volume = vol;
+    }
+    for (let i=0; i<craft_costs[res].length; i++){
+        let num = volume * craft_costs[res][i].a;
+        global.resource[craft_costs[res][i].r].amount -= num;
+    }
+    global.resource[res].amount += volume * craft_bonus;
+}
+
+function initAutoMarket(){
+    if (!global.settings.tabLoad && (global.settings.civTabs !== 4 || global.settings.marketTabs !== 0)){
+        return;
+    }
+    let am = global.settings.autoMarket;
+    let panel = $(`<div id="autoMarket" class="market-header autoMarket"></div>`);
+    $('#market').append(panel);
+    let trigger = function(key,label){
+        return $(`<div class="autoTrigger">${label}
+            <b-field><b-radio-button v-model="a.${key}.type" native-value="pct" size="is-small">${loc('auto_market_pct')}</b-radio-button><b-radio-button v-model="a.${key}.type" native-value="sub" size="is-small">${loc('auto_market_sub')}</b-radio-button></b-field>
+            <b-numberinput min="0" :max="a.${key}.type === 'pct' ? 100 : Number.MAX_SAFE_INTEGER" :input="cap(a.${key})" v-model="a.${key}.v" :controls="false"></b-numberinput>
+        </div>`);
+    };
+
+    if (!global.race['no_trade']){
+        panel.append($(`<h3 class="has-text-warning">${loc('auto_market_trade')}</h3>`));
+        panel.append(trigger('sellAt',loc('auto_market_sell_at')));
+        panel.append(trigger('buyAt',loc('auto_market_buy_at')));
+        Object.keys(tmp_vars.resource).forEach(function(res){
+            if (!tmp_vars.resource[res].tradable){
+                return;
+            }
+            if (!am.sell[res]){
+                am.sell[res] = { on: false, qty: tradeMax() };
+            }
+            if (!am.buy[res]){
+                am.buy[res] = { on: false, qty: tradeMax() };
+            }
+            panel.append($(`<div class="autoRow" v-show="r.${res}.display"><span class="res has-text-${tmp_vars.resource[res].color}">{{ r.${res}.name }}</span>
+                <b-checkbox v-model="a.sell.${res}.on">${loc('auto_market_sell')}</b-checkbox>
+                <b-field>${loc('auto_market_qty')}<b-numberinput min="1" :max="Number.MAX_SAFE_INTEGER" v-model="a.sell.${res}.qty" :controls="false"></b-numberinput></b-field>
+                <b-checkbox v-model="a.buy.${res}.on">${loc('auto_market_buy')}</b-checkbox>
+                <b-field>${loc('auto_market_qty')}<b-numberinput min="1" :max="Number.MAX_SAFE_INTEGER" v-model="a.buy.${res}.qty" :controls="false"></b-numberinput></b-field>
+            </div>`));
+        });
+    }
+
+    if (!global.race['no_craft']){
+        panel.append($(`<h3 class="has-text-warning">${loc('auto_market_craft')}</h3>`));
+        panel.append(trigger('craftAt',loc('auto_market_craft_at')));
+        let craft_costs = craftCost(true);
+        Object.keys(craft_costs).forEach(function(res){
+            if (!global.resource[res]){
+                return;
+            }
+            if (!am.craft[res]){
+                am.craft[res] = { on: false, qty: 10 };
+            }
+            panel.append($(`<div class="autoRow" v-show="r.${res}.display"><span class="res has-text-danger">{{ r.${res}.name }}</span>
+                <b-checkbox v-model="a.craft.${res}.on">${loc('auto_market_make')}</b-checkbox>
+                <b-field>${loc('auto_market_qty')}<b-numberinput min="1" :max="Number.MAX_SAFE_INTEGER" v-model="a.craft.${res}.qty" :controls="false"></b-numberinput></b-field>
+            </div>`));
+        });
+    }
+
+    vBind({
+        el: '#autoMarket',
+        data: {
+            a: am,
+            r: global.resource
+        },
+        methods: {
+            cap(trigger){
+                if (trigger.type === 'pct' && trigger.v > 100){
+                    trigger.v = 100;
+                }
             }
         }
     });

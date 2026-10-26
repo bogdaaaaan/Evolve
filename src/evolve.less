@@ -1811,6 +1811,17 @@ Misc ---------> Main template
         .buttonList .is-selected {
             border-color: @enabled;
         }
+
+        .autoTrigger .button {
+            opacity: .5;
+
+            &.is-selected {
+                opacity: 1;
+                border-color: @enabled;
+                color: @enabled;
+                font-weight: bold;
+            }
+        }
     }
 }
 
@@ -3698,6 +3709,47 @@ a {
 
     .galaxyTrade {
         margin-right: 0;
+    }
+
+    .autoMarket {
+        padding: .5rem 0;
+
+        .field {
+            display: flex;
+            align-items: center;
+            gap: .25rem;
+            margin-bottom: .25rem;
+        }
+
+        .autoTrigger {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .5rem;
+            margin-bottom: .25rem;
+
+            .field {
+                margin-bottom: 0;
+            }
+        }
+
+        .autoRow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .25rem .75rem;
+
+            .res {
+                width: 8rem;
+            }
+            .field {
+                margin-bottom: 0;
+            }
+        }
+
+        input {
+            width: 6rem;
+        }
     }
 
     .trade-header {

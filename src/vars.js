@@ -1544,6 +1544,14 @@ if (!global.settings.hasOwnProperty('mtorder')){
 if (!global.settings.hasOwnProperty('resBar')){
     global.settings['resBar'] = {};
 }
+if (!global.settings.hasOwnProperty('autoMarket')){
+    global.settings['autoMarket'] = { sell: {}, buy: {}, craft: {} };
+}
+['sellAt','buyAt','craftAt'].forEach(function(k){
+    if (typeof global.settings.autoMarket[k] !== 'object'){
+        global.settings.autoMarket[k] = { type: 'pct', v: 100 };
+    }
+});
 
 export function setupStats(){
     // Stat Counters
