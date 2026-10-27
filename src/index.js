@@ -12,12 +12,23 @@ import { drawEvolution, drawCity, drawTech, resQueue, clearResDrag } from './act
 import { renderSpace, ascendLab, terraformLab } from './space.js';
 import { renderFortress, buildFortress, drawMechLab, clearMechDrag, drawHellObservations } from './portal.js';
 import { renderEdenic } from './edenic.js';
-import { cloudState, cloudSave, cloudLoad } from './cloud.js';
+import { cloudState, cloudSave, cloudAutoSave, cloudList, cloudRead, setCloudAutoSave } from './cloud.js';
 import { drawShipYard, clearShipDrag, renderTauCeti } from './truepath.js';
 import { arpa, clearGeneticsDrag } from './arpa.js';
 
 export function mainVue(){
     cloudState.status = loc(save.getItem('gist_token') ? 'cloud_token_set' : 'cloud_no_token');
+    const gistAutoSave = function(){
+        if (!save.getItem('gist_token') || global.race['noexport']){
+            return;
+        }
+        cloudAutoSave(window.exportGame()).then(function(date){
+            cloudState.status = loc('cloud_autosaved',[new Date(date).toLocaleString()]);
+        }).catch(function(err){
+            cloudState.status = loc('cloud_error',[err.message]);
+        });
+    };
+    setCloudAutoSave(cloudState.auto, gistAutoSave);
     vBind({
         el: '#mainColumn div:first-child',
         data: {
@@ -75,15 +86,28 @@ export function mainVue(){
                     return;
                 }
                 cloudState.status = loc('cloud_working');
-                cloudLoad().then(function(cloud){
-                    let date = new Date(cloud.date).toLocaleString();
-                    cloudState.status = loc('cloud_found',[date]);
-                    if (window.confirm(loc('cloud_confirm',[date]))){
-                        importGame(cloud.data);
-                    }
+                cloudList().then(function(saves){
+                    cloudState.saves = saves;
+                    cloudState.status = loc('cloud_pick');
                 }).catch(function(err){
                     cloudState.status = loc('cloud_error',[err.message]);
                 });
+            },
+            gistPick(entry){
+                if (window.confirm(loc('cloud_confirm',[this.cloudLabel(entry)]))){
+                    cloudRead(entry).then(function(data){
+                        importGame(data);
+                    }).catch(function(err){
+                        cloudState.status = loc('cloud_error',[err.message]);
+                    });
+                }
+            },
+            cloudLabel(entry){
+                let date = entry.date ? new Date(entry.date).toLocaleString() : loc('cloud_unknown_date');
+                return `${loc(entry.auto ? 'cloud_autosave' : 'cloud_manual')}: ${date}`;
+            },
+            setAuto(minutes){
+                setCloudAutoSave(minutes, gistAutoSave);
             },
             saveExportFile(){
                 const downloadToFile = (content, filename, contentType) => {
@@ -1501,6 +1525,12 @@ export function index(){
             <button class="button" @click="gistSave">${loc('cloud_save')}</button>
             <button class="button" @click="gistLoad">${loc('cloud_load')}</button>
             <span>{{ c.status }}</span>
+            <div class="cloudAuto">${loc('cloud_auto')}
+                <b-field>${[0,1,5,15,30].map(m => `<b-radio-button v-model="c.auto" :native-value="${m}" size="is-small" @input="setAuto">${m ? loc('cloud_min',[m]) : loc('cloud_off')}</b-radio-button>`).join('')}</b-field>
+            </div>
+            <div v-show="c.saves.length > 0">
+                <button v-for="entry in c.saves" class="button" @click="gistPick(entry)">{{ cloudLabel(entry) }}</button>
+            </div>
         </div>
         <div class="reset">
             <b-collapse :open="false">
