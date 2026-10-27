@@ -12,14 +12,17 @@ import { drawEvolution, drawCity, drawTech, resQueue, clearResDrag } from './act
 import { renderSpace, ascendLab, terraformLab } from './space.js';
 import { renderFortress, buildFortress, drawMechLab, clearMechDrag, drawHellObservations } from './portal.js';
 import { renderEdenic } from './edenic.js';
+import { cloudState, cloudSave, cloudLoad } from './cloud.js';
 import { drawShipYard, clearShipDrag, renderTauCeti } from './truepath.js';
 import { arpa, clearGeneticsDrag } from './arpa.js';
 
 export function mainVue(){
+    cloudState.status = loc(save.getItem('gist_token') ? 'cloud_token_set' : 'cloud_no_token');
     vBind({
         el: '#mainColumn div:first-child',
         data: {
-            s: global.settings
+            s: global.settings,
+            c: cloudState
         },
         methods: {
             swapTab(tab){
@@ -37,6 +40,50 @@ export function mainVue(){
                 $('#importExport').val(window.exportGame());
                 $('#importExport').select();
                 document.execCommand('copy');
+            },
+            setGistToken(){
+                let token = $('#gistToken').val().trim();
+                $('#gistToken').val('');
+                save.removeItem('gist_id');
+                if (token){
+                    save.setItem('gist_token', token);
+                }
+                else {
+                    save.removeItem('gist_token');
+                }
+                cloudState.status = loc(token ? 'cloud_token_set' : 'cloud_no_token');
+            },
+            gistSave(){
+                if (!save.getItem('gist_token')){
+                    cloudState.status = loc('cloud_no_token');
+                    return;
+                }
+                if (global.race['noexport']){
+                    cloudState.status = window.exportGame();
+                    return;
+                }
+                cloudState.status = loc('cloud_working');
+                cloudSave(window.exportGame()).then(function(date){
+                    cloudState.status = loc('cloud_saved',[new Date(date).toLocaleString()]);
+                }).catch(function(err){
+                    cloudState.status = loc('cloud_error',[err.message]);
+                });
+            },
+            gistLoad(){
+                if (!save.getItem('gist_token')){
+                    cloudState.status = loc('cloud_no_token');
+                    return;
+                }
+                cloudState.status = loc('cloud_working');
+                cloudLoad().then(function(cloud){
+                    let date = new Date(cloud.date).toLocaleString();
+                    cloudState.status = loc('cloud_found',[date]);
+                    if (window.confirm(loc('cloud_confirm',[date]))){
+                        importGame(cloud.data);
+                    }
+                }).catch(function(err){
+                    cloudState.status = loc('cloud_error',[err.message]);
+                });
             },
             saveExportFile(){
                 const downloadToFile = (content, filename, contentType) => {
@@ -1447,6 +1494,13 @@ export function index(){
             <button class="button" @click="saveExport">{{ 'export' | label }}</button>
             <button class="button" @click="saveExportFile">{{ 'export_file' | label }}</button>
             <button class="button right" @click="restoreGame"><span class="settings9" aria-label="${loc('settings9')}">{{ 'restore' | label }}</span></button>
+        </div>
+        <div class="importExport cloudSave">
+            <div>${loc('cloud_title')}</div>
+            <input id="gistToken" class="input" type="password" autocomplete="off" placeholder="${loc('cloud_token')}" @change="setGistToken">
+            <button class="button" @click="gistSave">${loc('cloud_save')}</button>
+            <button class="button" @click="gistLoad">${loc('cloud_load')}</button>
+            <span>{{ c.status }}</span>
         </div>
         <div class="reset">
             <b-collapse :open="false">
