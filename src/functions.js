@@ -97,6 +97,25 @@ if ('ontouchstart' in document.documentElement && navigator.userAgent.match(/Mob
     });
 }
 
+// Holding down a +/- or crate/container button keeps clicking it
+$(document).on('mousedown', '.add, .sub, .market .button, #createHead .button, .modal .construct, .modal .assign, .modal .unassign', function(e){
+    if (e.button !== 0){
+        return;
+    }
+    let button = this;
+    let timer = setTimeout(function repeat(){
+        button.click();
+        timer = setTimeout(repeat, 75);
+    }, 400);
+    let stop = function(){
+        clearTimeout(timer);
+        $(document).off('mouseup', stop);
+        $(button).off('mouseleave', stop);
+    };
+    $(document).on('mouseup', stop);
+    $(button).on('mouseleave', stop);
+});
+
 export function clearPopper(id){
     if (id && $(`#popper`).data('id') !== id){
         return;
